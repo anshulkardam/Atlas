@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from '../user/user.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
-import { verify } from 'argon2';
+import { hash, verify } from 'argon2';
 import { JwtPayload } from './types/jwtPayload.js';
 import { JwtService } from '@nestjs/jwt';
 import { type ConfigType } from '@nestjs/config';
@@ -41,6 +41,9 @@ export class AuthService {
 
   async loginUser(userId: string, name?: string) {
     const { accessToken, refreshToken } = await this.generateTokens(userId);
+    const hashedRefreshToken = await hash(refreshToken);
+
+    await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
 
     return {
       id: userId,
@@ -71,10 +74,20 @@ export class AuthService {
     return currentUser;
   }
 
-  async validateRefreshUserToken(userId: string) {
+  async validateRefreshUserToken(userId: string, refreshToken: string) {
     const user = await this.userService.findOne(userId);
 
     if (!user) throw new UnauthorizedException('Invalid Credentials');
+
+    if (!user.hashedRefreshToken)
+      throw new UnauthorizedException('Invalid Refresh Token');
+
+    const hashedToken = user.hashedRefreshToken as string;
+
+    const verifyRefreshToken = await verify(hashedToken, refreshToken);
+
+    if (!verifyRefreshToken)
+      throw new UnauthorizedException('Invalid Refresh Token');
 
     const currentUser = { id: user.id };
 
@@ -83,6 +96,10 @@ export class AuthService {
 
   async refreshTokens(userId: string, name: string) {
     const { accessToken, refreshToken } = await this.generateTokens(userId);
+
+    const hashedRefreshToken = await hash(refreshToken);
+
+    await this.userService.updateHashedRefreshToken(userId, hashedRefreshToken);
 
     return {
       id: userId,
@@ -98,5 +115,9 @@ export class AuthService {
     if (user) return user;
 
     return await this.userService.create(googleUser);
+  }
+
+  async logout(id: string) {
+    return this.userService.updateHashedRefreshToken(id, null);
   }
 }

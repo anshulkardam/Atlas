@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import refreshAuthConfig from './config/refresh-auth.config.js';
 import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy.js';
 import googleConfig from './config/google.config.js';
+import { GoogleStrategy } from './strategies/google.strategy.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import googleConfig from './config/google.config.js';
     LocalStrategy,
     JwtStrategy,
     RefreshJwtStrategy,
+    GoogleStrategy,
   ],
 })
 export class AuthModule {}
