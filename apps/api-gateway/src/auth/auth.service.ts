@@ -6,14 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService, type ConfigType } from '@nestjs/config';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto, OAuthApiResponse } from '@repo/common';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from 'argon2';
 import refreshAuthConfig from './config/refresh-auth.config';
 import { JwtPayload } from './types/jwtPayload';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 import {
   RegisterApiResponse,
   LoginApiResponse,
@@ -44,28 +44,10 @@ export class AuthService {
         ),
       );
 
-      const { accessToken, refreshToken } = await this.generateTokens(
-        user.data.id,
-      );
-      const hashedRefreshToken = await hash(refreshToken);
-
-      await firstValueFrom(
-        this.httpService.post(
-          `${this.campaignServiceUrl}/api/user/updateHashRT`,
-          {
-            userId: user.data.id,
-            hashedRefreshToken,
-          },
-        ),
-      );
-
-      return {
+      await this.issueSession({
         id: user.data.id,
         name: user.data.name,
-        email: user.data.email,
-        accessToken,
-        refreshToken,
-      };
+      });
     } catch (err) {
       if (err instanceof AxiosError && err.response) {
         const { status, data } = err.response as {
@@ -86,7 +68,7 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string) {
+  async loginWithPassword(email: string, password: string) {
     const response = await firstValueFrom(
       this.httpService.post<LoginApiResponse>(
         `${this.campaignServiceUrl}/api/user/login`,
@@ -97,24 +79,26 @@ export class AuthService {
       ),
     );
 
-    const { accessToken, refreshToken } = await this.generateTokens(
-      response.data.id,
-    );
+    await this.issueSession({ id: response.data.id, name: response.data.name });
+  }
+
+  private async issueSession(user: { id: string; name?: string }) {
+    const { accessToken, refreshToken } = await this.generateTokens(user.id);
     const hashedRefreshToken = await hash(refreshToken);
 
     await firstValueFrom(
       this.httpService.post(
         `${this.campaignServiceUrl}/api/user/updateHashRT`,
         {
-          userId: response.data.id,
+          userId: user.id,
           hashedRefreshToken,
         },
       ),
     );
 
     return {
-      id: response.data.id,
-      name: response.data.name,
+      id: user.id,
+      name: user.name,
       accessToken,
       refreshToken,
     };
@@ -180,17 +164,27 @@ export class AuthService {
     };
   }
 
-  async validateGoogleUser({ email, name }: { email: string; name: string }) {
-    const user = await firstValueFrom(
-      this.httpService.get(
-        `${this.campaignServiceUrl}/api/user?email=${email}`,
+  async findOrCreateGoogleUser({
+    email,
+    name,
+    providerId,
+  }: {
+    email: string;
+    name: string;
+    providerId: string;
+  }): Promise<OAuthApiResponse> {
+    const response: AxiosResponse<OAuthApiResponse> = await firstValueFrom(
+      this.httpService.post<OAuthApiResponse>(
+        `${this.campaignServiceUrl}/api/user/oauth`,
+        { email, name, providerId },
       ),
     );
 
-    if (user) return user;
+    if (!response.data) {
+      throw new InternalServerErrorException('Error validating google user');
+    }
 
-    const createUser = this.register({ email, name, password: '' });
-    return createUser;
+    return response.data;
   }
 
   async logout(id: string) {

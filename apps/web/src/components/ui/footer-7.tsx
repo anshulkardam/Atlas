@@ -1,5 +1,6 @@
+import { socials } from "@/utils/constants";
 import React from "react";
-import { FaFacebook, FaInstagram, FaLinkedin, FaTwitter } from "react-icons/fa";
+import { FaFacebook, FaGithub, FaInstagram, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 interface Footer7Props {
   logo?: {
@@ -36,15 +37,6 @@ const defaultSections = [
     ],
   },
   {
-    title: "Company",
-    links: [
-      { name: "About", href: "#" },
-      { name: "Team", href: "#" },
-      { name: "Blog", href: "#" },
-      { name: "Careers", href: "#" },
-    ],
-  },
-  {
     title: "Resources",
     links: [
       { name: "Help", href: "#" },
@@ -56,10 +48,9 @@ const defaultSections = [
 ];
 
 const defaultSocialLinks = [
-  { icon: <FaInstagram className="size-5" />, href: "#", label: "Instagram" },
-  { icon: <FaFacebook className="size-5" />, href: "#", label: "Facebook" },
-  { icon: <FaTwitter className="size-5" />, href: "#", label: "Twitter" },
-  { icon: <FaLinkedin className="size-5" />, href: "#", label: "LinkedIn" },
+  { icon: <FaGithub className="size-5" />, href: socials.github, label: "Facebook" },
+  { icon: <FaTwitter className="size-5" />, href: socials.twitter, label: "Twitter" },
+  { icon: <FaLinkedin className="size-5" />, href: socials.linkedin, label: "LinkedIn" },
 ];
 
 const defaultLegalLinks = [
@@ -68,12 +59,6 @@ const defaultLegalLinks = [
 ];
 
 export const Footer7 = ({
-  logo = {
-    url: "https://www.shadcnblocks.com",
-    src: "https://www.shadcnblocks.com/images/block/logos/shadcnblockscom-icon.svg",
-    alt: "logo",
-    title: "Shadcnblocks.com",
-  },
   sections = defaultSections,
   description = "A collection of components for your startup business or side project.",
   socialLinks = defaultSocialLinks,
@@ -81,24 +66,19 @@ export const Footer7 = ({
   legalLinks = defaultLegalLinks,
 }: Footer7Props) => {
   return (
-    <section className="py-32">
+    <section className="">
       <div className="container mx-auto">
         <div className="flex w-full flex-col justify-between gap-10 lg:flex-row lg:items-start lg:text-left">
           <div className="flex w-full flex-col justify-between gap-6 lg:items-start">
             {/* Logo */}
-            <div className="flex items-center gap-2 lg:justify-start">
-              <a href={logo.url}>
-                <img
-                  src={logo.src}
-                  alt={logo.alt}
-                  title={logo.title}
-                  className="h-8"
-                />
-              </a>
-              <h2 className="text-xl font-semibold">{logo.title}</h2>
+            <div className="flex items-center gap-4 lg:justify-center">
+              <img src={"/logo.svg"} alt={"Atlas logo"} title={"wat"} className="h-6" />
+
+              <h2 className="text-2xl font-semibold">Atlas</h2>
             </div>
             <p className="max-w-[70%] text-sm text-muted-foreground">
-              {description}
+              Research companies, extract products, pricing, competitors, and news, powered by a
+              resilient AI enrichment pipeline.
             </p>
             <ul className="flex items-center space-x-6 text-muted-foreground">
               {socialLinks.map((social, idx) => (
@@ -110,16 +90,13 @@ export const Footer7 = ({
               ))}
             </ul>
           </div>
-          <div className="grid w-full gap-6 md:grid-cols-3 lg:gap-20">
+          <div className="grid w-full gap-6 md:grid-cols-2 lg:gap-20">
             {sections.map((section, sectionIdx) => (
               <div key={sectionIdx}>
                 <h3 className="mb-4 font-bold">{section.title}</h3>
                 <ul className="space-y-3 text-sm text-muted-foreground">
                   {section.links.map((link, linkIdx) => (
-                    <li
-                      key={linkIdx}
-                      className="font-medium hover:text-primary"
-                    >
+                    <li key={linkIdx} className="font-medium hover:text-primary">
                       <a href={link.href}>{link.name}</a>
                     </li>
                   ))}
@@ -142,4 +119,3 @@ export const Footer7 = ({
     </section>
   );
 };
-

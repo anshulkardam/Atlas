@@ -23,12 +23,24 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
+    profile: {
+      id: string;
+      displayName: string;
+      emails?: Array<{ value: string }>;
+      [key: string]: any;
+    },
     done: VerifyCallback,
   ) {
-    const user = await this.authService.validateGoogleUser({
-      email: profile.emails[0].value,
+    const email = profile.emails?.[0]?.value;
+
+    if (!email) {
+      return done(new Error('Google account does not have an email'), false);
+    }
+
+    const user = await this.authService.findOrCreateGoogleUser({
+      email,
       name: profile.displayName,
+      providerId: profile.id,
     });
 
     done(null, user);

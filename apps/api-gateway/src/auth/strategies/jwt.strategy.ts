@@ -20,9 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload) {
-    console.log('fas', payload);
     const userId = payload.sub;
-    console.log(userId);
     return { id: userId };
   }
 }

@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma.service.js';
 import { hash, verify } from 'argon2';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginUserDto } from './dto/login-user.dto.js';
+import { OAuthPayload } from './dto/oauth-user.dto.js';
 
 @Injectable()
 export class UserService {
@@ -24,29 +25,51 @@ export class UserService {
     return await this.prisma.user.create({
       data: {
         password: hashedPassword,
+        provider: 'LOCAL',
         ...user,
+      },
+      select: {
+        email: true,
+        name: true,
+        id: true,
       },
     });
   }
 
   async validateUser(loginPayload: LoginUserDto) {
-    const user = await this.findbyEmail(loginPayload.email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: loginPayload.email },
+    });
 
-    if (!user) throw new UnauthorizedException('Invalid Credentials');
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid Credentials');
+    }
 
     const verifyPassword = await verify(user.password, loginPayload.password);
 
     if (!verifyPassword) throw new UnauthorizedException('Invalid Credentials');
 
-    return { id: user.id, name: user.name };
+    return { id: user.id, name: user.name, email: user.email };
   }
 
-  async validateGoogleUser(googleUser: CreateUserDto) {
-    const user = await this.findbyEmail(googleUser.email);
+  async findOrCreateUser(payload: OAuthPayload) {
+    const user = await this.findbyEmail(payload.email);
 
     if (user) return user;
 
-    return await this.create(googleUser);
+    return await this.prisma.user.create({
+      data: {
+        email: payload.email,
+        name: payload.name,
+        provider: 'GOOGLE',
+        providerId: payload.providerId,
+      },
+      select: {
+        email: true,
+        id: true,
+        name: true,
+      },
+    });
   }
 
   async logout(id: string) {
@@ -58,7 +81,10 @@ export class UserService {
   }
 
   async findbyEmail(email: string) {
-    return await this.prisma.user.findUnique({ where: { email: email } });
+    return await this.prisma.user.findUnique({
+      where: { email },
+      select: { email: true, id: true, name: true },
+    });
   }
 
   async updateHashedRefreshToken(

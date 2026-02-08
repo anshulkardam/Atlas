@@ -43,15 +43,15 @@ export const Faq5 = ({
 }: Faq5Props) => {
   return (
     <section className="py-32">
-      <div className="container">
+      <div className="container mx-auto">
         <div className="text-center">
-          <Badge className="text-xs font-medium">{badge}</Badge>
+          <Badge className="text-base px-4 font-medium">{badge}</Badge>
           <h1 className="mt-4 text-4xl font-semibold">{heading}</h1>
           <p className="mt-6 font-medium text-muted-foreground">
             {description}
           </p>
         </div>
-        <div className="mx-auto mt-14 max-w-screen-sm">
+        <div className="mx-auto mt-14 max-w-4xl">
           {faqs.map((faq, index) => (
             <div key={index} className="mb-8 flex gap-4">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-secondary font-mono text-xs text-primary">

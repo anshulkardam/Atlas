@@ -14,9 +14,16 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  name     String
-  password String
-  hashedRefreshToken  String?
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  name               String
+  password           String?
+  provider           AuthProvider
+  providerId         String?      @unique
+  hashedRefreshToken String?
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
 }
