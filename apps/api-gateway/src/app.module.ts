@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { GatewayController } from './gateway/gateway.controller';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -10,8 +12,9 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    HttpModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, GatewayController],
   providers: [AppService],
 })
 export class AppModule {}

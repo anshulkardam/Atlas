@@ -1,0 +1,44 @@
+services:
+
+  #Postgres DB
+  # postgres:
+  #   image: postgres:latest
+  #   container_name: atlas-db
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_USER: atlas
+  #     POSTGRES_PASSWORD: atlas_dev
+  #     POSTGRES_DB: atlas_db
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: [ "executable", "arg" ]
+  #     interval: 10s
+  #     timeout: 30s
+  #     retries: 5
+
+  #Valkey Redis
+  valkey:
+    image: valkey/valkey:7
+    container_name: alpha-redis-valkey
+    volumes:
+      - valkey_data:/data
+    command: valkey-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # postgres_data:
+  valkey_data:
+
+
+networks:
+  default:
+    name: alpha-network
