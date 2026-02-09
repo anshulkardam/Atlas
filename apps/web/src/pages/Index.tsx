@@ -1,4 +1,4 @@
-import { Features } from "@/components/blocks/features-5";
+import { Features } from "@/components/ui/features-5";
 import { CTA } from "@/components/ui/call-to-action";
 import { Faq5 } from "@/components/ui/faq-5";
 import { Footer7 } from "@/components/ui/footer-7";
@@ -9,7 +9,6 @@ const Index = () => {
   return (
     <div>
       <Hero />
-
       <div className="min-h-screen w-full relative">
         {/* Crimson Depth */}
         <div

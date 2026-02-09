@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Eye, EyeOff, Check } from "lucide-react";
 import { useRegister } from "@/hooks/auth";
 import { registerSchema } from "@/types/auth";

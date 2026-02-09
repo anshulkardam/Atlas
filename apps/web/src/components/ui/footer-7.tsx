@@ -1,6 +1,6 @@
 import { socials } from "@/utils/constants";
 import React from "react";
-import { FaFacebook, FaGithub, FaInstagram, FaLinkedin, FaTwitter } from "react-icons/fa";
+import { FaGithub, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 interface Footer7Props {
   logo?: {
@@ -60,7 +60,6 @@ const defaultLegalLinks = [
 
 export const Footer7 = ({
   sections = defaultSections,
-  description = "A collection of components for your startup business or side project.",
   socialLinks = defaultSocialLinks,
   copyright = "© 2024 Shadcnblocks.com. All rights reserved.",
   legalLinks = defaultLegalLinks,

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Github, Instagram, Linkedin, Menu, Twitter, X } from "lucide-react";
+import React, { useState } from "react";
+import { Github, Linkedin, Menu, Twitter, X } from "lucide-react";
 import { Button } from "./button";
 import { SystemHealthButton } from "../SystemHealthButton";
 import { AnimatedBadge } from "./animated-badge";

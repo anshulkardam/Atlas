@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import { useBootstrapAuth } from "./hooks/bootstrapAuth";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import CampaignDetail from "./pages/CampaignDetail";
 
 const queryClient = new QueryClient();
 
@@ -23,10 +24,11 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Signup />} />
 
-          {/* 🔒 Protected routes */}
+          {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
           </Route>
+          <Route path="/details" element={<CampaignDetail />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
