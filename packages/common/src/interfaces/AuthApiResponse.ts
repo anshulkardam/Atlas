@@ -6,7 +6,9 @@ export interface RegisterApiResponse {
   refreshToken: string;
 }
 
-export type LoginApiResponse = Omit<RegisterApiResponse, "email">;
+export type LoginApiResponse = RegisterApiResponse;
+
+export type OAuthApiResponse = Omit<RegisterApiResponse, "accessToken" | "refreshToken">;
 
 export type getRefreshToken = {
   hashedRefreshToken: string;
