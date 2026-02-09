@@ -18,12 +18,145 @@ model User {
   email              String       @unique
   name               String
   password           String?
+  role               Role         @default(USER)
   provider           AuthProvider
   providerId         String?      @unique
   hashedRefreshToken String?
+  campaigns          Campaign[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum AuthProvider {
   LOCAL
   GOOGLE
+}
+
+enum CampaignStatus {
+  ACTIVE
+  STOPPED
+}
+
+model Campaign {
+  id        String         @id @default(cuid())
+  name      String
+  status    CampaignStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  companies Company[]
+}
+
+model Company {
+  id         String           @id @default(cuid())
+  name       String
+  domain     String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  campaignId String
+  campaign   Campaign         @relation(references: [id], fields: [campaignId])
+  people     People[]
+  snippets   ContextSnippet[] @relation("CompanySnippets")
+}
+
+enum EnrichmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+  FAILED
+}
+
+model People {
+  id               String           @id @default(cuid())
+  fullName         String
+  email            String
+  title            String
+  enrichmentStatus EnrichmentStatus @default(PENDING)
+  lastEnrichedAt   DateTime         @default(now())
+  enrichmentJobId  String?
+  retry_count      Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  companyId        String
+  company          Company          @relation(references: [id], fields: [companyId])
+
+  snippets ContextSnippet[] @relation("PersonSnippets")
+}
+
+enum EntityType {
+  PERSON
+  COMPANY
+}
+
+enum SnippetType {
+  COMPANY_VALUE_PROP
+  PRODUCT_NAMES
+  PRICING_MODEL
+  KEY_COMPETITORS
+  RECENT_NEWS
+}
+
+model ContextSnippet {
+  id              String      @id @default(cuid())
+  entityType      EntityType
+  entityId        String
+  snippetType     SnippetType
+  payload         Json
+  sourceUrls      Json        @default("[]")
+  confidenceScore Float       @default(0.0)
+  cacheHitRatio   Float       @default(0.0)
+  createdAt       DateTime    @default(now())
+
+  person     People?     @relation("PersonSnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_person_entityId_fkey")
+  company    Company?    @relation("CompanySnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_company_entityId_fkey")
+  searchLogs SearchLog[]
+
+  @@index([entityType, entityId])
+}
+
+enum CircuitBreakerState {
+  CLOSED
+  OPEN
+  HALF_OPEN
+}
+
+model SearchLog {
+  id                  String              @id @default(cuid())
+  contextSnippetId    String?
+  iteration           Int
+  query               String
+  topResults          Json                @default("[]")
+  cacheHit            Boolean             @default(false)
+  circuitBreakerState CircuitBreakerState @default(CLOSED)
+  responseTimeMs      Int
+  createdAt           DateTime            @default(now())
+
+  contextSnippet ContextSnippet? @relation(fields: [contextSnippetId], references: [id], onDelete: SetNull)
+
+  @@index([contextSnippetId])
+  @@index([createdAt])
+}
+
+enum CircuitBreakerEventType {
+  OPENED
+  CLOSED
+  HALF_OPENED
+  SUCCESS
+  FAILURE
+}
+
+model CircuitBreakerEvent {
+  id           String                  @id @default(cuid())
+  serviceName  String
+  eventType    CircuitBreakerEventType
+  errorMessage String?
+  createdAt    DateTime                @default(now())
+
+  @@index([serviceName, createdAt])
 }
