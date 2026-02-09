@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Post,
   Req,
   Request,
@@ -35,6 +37,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   login(@Body() loginPayload: LoginUserDto) {
     return this.authService.loginWithPassword(
       loginPayload.email,
@@ -61,12 +64,12 @@ export class AuthController {
   @UseGuards(RefreshAuthGuard)
   @Post('refresh')
   refreshToken(@Request() req: AuthUser) {
-    return this.authService.refreshTokens(req.id, req.name);
+    return this.authService.refreshTokens(req.user.id, req.user.name);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(@Request() req: AuthUser) {
-    return this.authService.logout(req.id);
+    return this.authService.logout(req.user.id);
   }
 }

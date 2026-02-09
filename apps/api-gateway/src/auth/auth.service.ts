@@ -79,7 +79,12 @@ export class AuthService {
       ),
     );
 
-    await this.issueSession({ id: response.data.id, name: response.data.name });
+    console.log('response', response.data);
+
+    return await this.issueSession({
+      id: response.data.id,
+      name: response.data.name,
+    });
   }
 
   private async issueSession(user: { id: string; name?: string }) {
