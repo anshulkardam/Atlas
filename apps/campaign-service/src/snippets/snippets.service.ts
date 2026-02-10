@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from 'src/generated/prisma/client.js';
-import { PrismaService } from 'src/prisma.service.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { PrismaService } from '../prisma.service.js';
 
 interface EnrichmentCompletionPayload {
   personId: string;
@@ -23,17 +23,22 @@ export class SnippetsService {
       where: {
         entityType: 'PERSON',
         entityId: personId,
-        person: {
-          company: {
-            campaign: {
-              userId,
-            },
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
       },
+    });
+  }
+
+  async createBatch(snippets: any) {
+    return await this.prisma.contextSnippet.createMany({
+      data: snippets,
+    });
+  }
+
+  async SaveSearchLogs(data: any) {
+    return await this.prisma.searchLog.create({
+      data,
     });
   }
 

@@ -4,6 +4,7 @@ import { Navigate, Outlet } from "react-router";
 const ProtectedRoute = () => {
   const { isAuthenticated, isBootstrapped } = useAuthStore();
 
+  console.log({ isAuthenticated, isBootstrapped });
   if (!isBootstrapped) {
     return (
       <div className="flex h-screen items-center justify-center">

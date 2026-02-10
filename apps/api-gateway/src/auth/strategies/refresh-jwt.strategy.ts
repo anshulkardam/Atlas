@@ -18,7 +18,9 @@ export class RefreshJwtStrategy extends PassportStrategy(
     private authService: AuthService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refresh'),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request) => req?.cookies?.refresh_token as string,
+      ]),
       secretOrKey: jwtConfig.secret as string,
       ignoreExpiration: false,
       passReqToCallback: true,
@@ -27,7 +29,7 @@ export class RefreshJwtStrategy extends PassportStrategy(
 
   validate(req: Request, payload: JwtPayload) {
     const userId = payload.sub;
-    const refreshToken = req.body.refresh;
+    const refreshToken = req.cookies.refresh_token as string;
 
     return this.authService.validateRefreshUserToken(userId, refreshToken);
   }

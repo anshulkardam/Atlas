@@ -101,7 +101,7 @@ export const AnimatedBadge = ({
         ></div>
       </div>
       <div className="mx-2 h-4 w-px bg-neutral-300 dark:bg-neutral-600/80" />
-      <span className="bg-clip-text text-base mt-1 font-medium">{text}</span>
+      <span className="bg-clip-text text-sm sm:text-base mt-1 font-medium">{text}</span>
       <ChevronRight className="ml-1 h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 group-hover:translate-x-0.5 dark:text-neutral-500" />
     </motion.div>
   )

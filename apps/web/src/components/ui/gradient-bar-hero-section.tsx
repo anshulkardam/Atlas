@@ -105,32 +105,11 @@ const Navbar: React.FC = () => {
         {isMenuOpen && (
           <div className="md:hidden mt-4 bg-gray-900 bg-opacity-95 backdrop-blur-sm rounded-lg p-4 animate-fadeIn">
             <div className="flex flex-col space-y-4">
-              <a
-                href="#features"
-                className="text-gray-300 hover:text-white transition-colors duration-300 py-2 font-space"
-              >
-                Features
-              </a>
-              <a
-                href="#vision"
-                className="text-gray-300 hover:text-white transition-colors duration-300 py-2 font-space"
-              >
-                Vision
-              </a>
-              <a
-                href="#press"
-                className="text-gray-300 hover:text-white transition-colors duration-300 py-2 font-space"
-              >
-                Press
-              </a>
-              <a
-                href="#contact"
-                className="text-gray-300 hover:text-white transition-colors duration-300 py-2 font-space"
-              >
-                Contact
-              </a>
               <button className="bg-white hover:bg-gray-100 text-black px-5 py-2 rounded-full transition-all duration-300 w-full font-space">
-                Join The Waitlist
+                Login
+              </button>
+              <button className="bg-white hover:bg-gray-100 text-black px-5 py-2 rounded-full transition-all duration-300 w-full font-space">
+               Register
               </button>
             </div>
           </div>
@@ -165,7 +144,7 @@ export const Component: React.FC = () => {
           </p>
         </div>
 
-        <div className="w-full max-w-2xl space-x-10 mb-6 sm:mb-8 px-4">
+        <div className="w-full max-w-2xl flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-10 mb-6 sm:mb-8 px-4">
           <SystemHealthButton status="operational" />{" "}
           <Button size={"lg"} className="rounded-lg text-base">
             Watch the Demo

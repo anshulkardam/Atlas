@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
   Param,
+  Post,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PeopleService } from './people.service.js';
@@ -21,10 +23,27 @@ export class PeopleController {
   }
 
   @Get(':id')
-  getPeopleById(
+  async getPeopleById(
     @Headers('x-user-id') userId: string,
     @Param('id') peopleId: string,
   ) {
-    return this.peopleService.getPeopleById(peopleId, userId);
+    const lol = await this.peopleService.getPeopleById(peopleId, userId);
+
+    return lol;
+  }
+
+  @Post(':id/start')
+  async markInProgress(@Param('id') id: string, @Body('jobId') jobId: string) {
+    return this.peopleService.markInProgress(id, jobId);
+  }
+
+  @Post(':id/complete')
+  async markComplete(@Param('id') id: string) {
+    return this.peopleService.markComplete(id);
+  }
+
+  @Post(':id/failed')
+  async markFailed(@Param('id') id: string) {
+    return this.peopleService.markFailed(id);
   }
 }

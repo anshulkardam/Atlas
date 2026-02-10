@@ -13,7 +13,7 @@ export class LoadSheddingGuard implements CanActivate {
 
   constructor() {
     this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-    this.maxConcurrentJobs = parseInt(process.env.MAX_CONCURRENT_JOBS || '10');
+    this.maxConcurrentJobs = parseInt(process.env.MAX_CONCURRENT_JOBS || '20');
   }
 
   async canActivate(): Promise<boolean> {

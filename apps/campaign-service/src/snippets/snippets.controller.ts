@@ -29,4 +29,14 @@ export class SnippetsController {
   complete(@Body() payload: any) {
     return this.snippetsService.persist(payload);
   }
+
+  @Post('batch')
+  async createBatch(@Body('snippets') snippets: any[]) {
+    return this.snippetsService.createBatch(snippets);
+  }
+
+  @Post('search-logs')
+  async createSearchLog(@Body() data: any) {
+    return this.snippetsService.SaveSearchLogs(data);
+  }
 }

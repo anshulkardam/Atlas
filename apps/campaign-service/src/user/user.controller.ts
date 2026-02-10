@@ -39,7 +39,7 @@ export class UserController {
   }
 
   @Get('getRefreshToken')
-  getUserRefreshToken(@Query() userId: string) {
-    return this.userService.getRefreshToken(userId);
+  getUserRefreshToken(@Query() payload: { userId: string }) {
+    return this.userService.getRefreshToken(payload.userId);
   }
 }

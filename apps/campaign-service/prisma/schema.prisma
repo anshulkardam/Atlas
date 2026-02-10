@@ -54,15 +54,14 @@ model Campaign {
 }
 
 model Company {
-  id         String           @id @default(cuid())
+  id         String   @id @default(cuid())
   name       String
   domain     String
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   campaignId String
-  campaign   Campaign         @relation(references: [id], fields: [campaignId])
+  campaign   Campaign @relation(references: [id], fields: [campaignId])
   people     People[]
-  snippets   ContextSnippet[] @relation("CompanySnippets")
 }
 
 enum EnrichmentStatus {
@@ -85,8 +84,6 @@ model People {
   updatedAt        DateTime         @updatedAt
   companyId        String
   company          Company          @relation(references: [id], fields: [companyId])
-
-  snippets ContextSnippet[] @relation("PersonSnippets")
 }
 
 enum EntityType {
@@ -113,8 +110,8 @@ model ContextSnippet {
   cacheHitRatio   Float       @default(0.0)
   createdAt       DateTime    @default(now())
 
-  person     People?     @relation("PersonSnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_person_entityId_fkey")
-  company    Company?    @relation("CompanySnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_company_entityId_fkey")
+  //person     People?     @relation("PersonSnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_person_entityId_fkey")
+  //company    Company?    @relation("CompanySnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_company_entityId_fkey")
   searchLogs SearchLog[]
 
   @@index([entityType, entityId])

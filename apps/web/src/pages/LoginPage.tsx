@@ -102,8 +102,6 @@ const Login = () => {
             </p>
           </div>
 
-          <Button onClick={() => navigate("/auth")}>move</Button>
-
           <form className="space-y-5" onSubmit={handleLogin}>
             <div className="space-y-2">
               <Label htmlFor="email">Email or username</Label>

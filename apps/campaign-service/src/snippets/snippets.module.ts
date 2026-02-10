@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { SnippetsService } from './snippets.service';
-import { SnippetsController } from './snippets.controller';
+import { SnippetsService } from './snippets.service.js';
+import { SnippetsController } from './snippets.controller.js';
+import { PrismaService } from '../prisma.service.js';
 
 @Module({
   controllers: [SnippetsController],
-  providers: [SnippetsService],
+  providers: [SnippetsService, PrismaService],
 })
 export class SnippetsModule {}

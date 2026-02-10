@@ -33,7 +33,12 @@ export class AuthService {
     this.campaignServiceUrl = this.configService.get('CAMPAIGN_SERVICE_URL')!;
   }
 
-  async register(createUser: CreateUserDto) {
+  async register(createUser: CreateUserDto): Promise<{
+    id: string;
+    name: string;
+    accessToken: string;
+    refreshToken: string;
+  }> {
     try {
       const user = await firstValueFrom(
         this.httpService.post<RegisterApiResponse>(
@@ -44,7 +49,7 @@ export class AuthService {
         ),
       );
 
-      await this.issueSession({
+      return await this.issueSession({
         id: user.data.id,
         name: user.data.name,
       });
@@ -79,15 +84,13 @@ export class AuthService {
       ),
     );
 
-    console.log('response', response.data);
-
     return await this.issueSession({
       id: response.data.id,
       name: response.data.name,
     });
   }
 
-  private async issueSession(user: { id: string; name?: string }) {
+  private async issueSession(user: { id: string; name: string }) {
     const { accessToken, refreshToken } = await this.generateTokens(user.id);
     const hashedRefreshToken = await hash(refreshToken);
 

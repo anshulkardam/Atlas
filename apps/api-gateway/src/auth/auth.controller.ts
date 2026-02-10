@@ -32,17 +32,45 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  register(@Body() createUser: CreateUserDto) {
-    return this.authService.register(createUser);
+  async register(
+    @Res({ passthrough: true }) res: Response,
+    @Body() createUser: CreateUserDto,
+  ) {
+    const { refreshToken, ...session } =
+      await this.authService.register(createUser);
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return session;
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() loginPayload: LoginUserDto) {
-    return this.authService.loginWithPassword(
-      loginPayload.email,
-      loginPayload.password,
-    );
+  async login(
+    @Res({ passthrough: true }) res: Response,
+    @Body() loginPayload: LoginUserDto,
+  ) {
+    const { refreshToken, ...session } =
+      await this.authService.loginWithPassword(
+        loginPayload.email,
+        loginPayload.password,
+      );
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return session;
   }
 
   @UseGuards(GoogleAuthGuard)
@@ -63,8 +91,14 @@ export class AuthController {
 
   @UseGuards(RefreshAuthGuard)
   @Post('refresh')
-  refreshToken(@Request() req: AuthUser) {
-    return this.authService.refreshTokens(req.user.id, req.user.name);
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(@Request() req: AuthUser) {
+    const session = await this.authService.refreshTokens(
+      req.user.id,
+      req.user.name,
+    );
+
+    return session;
   }
 
   @UseGuards(JwtAuthGuard)

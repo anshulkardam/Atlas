@@ -9,6 +9,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  await prisma.$connect();
   console.log('🌱 Starting database seed...');
 
   // Create a test user
