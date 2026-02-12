@@ -1,73 +1,151 @@
-# React + TypeScript + Vite
+# Atlas Platform - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+This is the frontend for the Atlas Platform - a contact enrichment system with real-time progress tracking and circuit breaker monitoring.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+### 🎯 Core Functionality
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+- **People Management**: View and manage contacts with enrichment status tracking
+- **Real-time Enrichment**: Watch enrichment progress live via WebSocket updates
+- **System Health**: Monitor circuit breaker status and system performance
+- **Context Display**: View enriched data with source attribution
 
-## Expanding the ESLint configuration
+### 📊 Dashboard Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Overview Stats**: Track total, completed, in-progress, pending, and failed enrichments
+- **People Table**: Interactive table with status badges and enrichment actions
+- **System Health Tab**: Real-time circuit breaker monitoring
+- **Enrichment Modal**: Live progress tracking with iteration details
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 🔧 Technical Implementation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **React Query**: Server state management with optimistic updates
+- **WebSocket Integration**: Real-time progress updates via Socket.IO
+- **TypeScript**: Full type safety with comprehensive entity models
+- **Tailwind CSS**: Responsive design with shadcn/ui components
+- **Zustand**: Global state management for WebSocket connections
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Architecture
+
+### Data Flow
+
+1. **Authentication**: JWT-based auth with refresh token support
+2. **API Gateway**: Routes all requests through port 3000
+3. **Real-time Updates**: WebSocket connection to port 3003
+4. **State Management**: React Query + Zustand for optimal performance
+
+### Key Components
+
+- `PeopleDataTable`: Main contacts table with status badges
+- `EnrichmentModal`: Real-time enrichment progress modal
+- `CircuitBreakerDashboard`: System health monitoring
+- `ContextSnippetsDisplay`: Enriched data visualization
+
+## Environment Variables
+
+Create a `.env` file from `.env.example`:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000
+VITE_WS_URL=http://localhost:3003
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. **Install Dependencies**:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+   ```bash
+   pnpm install
+   ```
+
+2. **Start Development Server**:
+
+   ```bash
+   pnpm dev
+   ```
+
+3. **Build for Production**:
+
+   ```bash
+   pnpm build
+   ```
+
+4. **Preview Production Build**:
+   ```bash
+   pnpm preview
+   ```
+
+## API Integration
+
+### Authentication
+
+- Login/Register with email/password or Google OAuth
+- JWT tokens stored securely with refresh mechanism
+- Protected routes enforce authentication
+
+### Endpoints Used
+
+- `GET /api/people` - List all contacts
+- `GET /api/people/:id` - Get contact details
+- `POST /api/people/:id/enrich` - Start enrichment
+- `GET /api/jobs/:jobId/status` - Job status polling
+- `GET /api/snippets/person/:id` - Enrichment results
+- `GET /api/circuit-breaker/status` - System health
+
+### WebSocket Events
+
+- `connect`/`disconnect` - Connection management
+- `subscribe`/`unsubscribe` - Job progress subscriptions
+- `progress` - Real-time enrichment updates
+
+## UI Components
+
+### Status Badges
+
+- **Pending** (Gray): Enrichment not started
+- **Processing** (Blue): Enrichment in progress
+- **Completed** (Green): Enrichment successful
+- **Failed** (Red): Enrichment failed
+
+### Progress Indicators
+
+- Progress bar with iteration count
+- Circuit breaker state display
+- Cache hit/miss indicators
+- Real-time iteration logs
+
+## Error Handling
+
+- **API Errors**: User-friendly toast notifications
+- **WebSocket Reconnection**: Automatic reconnection with backoff
+- **Type Safety**: Comprehensive TypeScript error checking
+- **Circuit Breaker**: Graceful degradation during failures
+
+## Performance
+
+- **Code Splitting**: Dynamic imports for optimal loading
+- **React Query**: Intelligent caching and background refetching
+- **WebSocket**: Efficient real-time updates
+- **Bundle Optimization**: gzipped assets under 300KB
+
+## Deployment
+
+The frontend is optimized for deployment on any static hosting service:
+
+- Vercel, Netlify, or similar platforms
+- Docker containerization support
+- Environment-based configuration
+- Production-ready build optimization
+
+## Contributing
+
+When adding new features:
+
+1. Follow existing component patterns
+2. Maintain TypeScript strict mode
+3. Add appropriate error handling
+4. Update this README
+5. Test with the backend services

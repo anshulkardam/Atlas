@@ -2,27 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CampaignService } from 'src/campaign/campaign.service';
 import { PubSubService } from 'src/pubsub/pubsub.service';
 import { SearchResult, SearchService } from '../search/search.service';
-
-export interface EnrichmentData {
-  companyValueProp?: string;
-  productNames?: string[];
-  pricingModel?: string;
-  keyCompetitors?: string[];
-  recentNews?: string[];
-}
-
-export interface AgentProgress {
-  iteration: number;
-  totalIterations: number;
-  currentQuery: string;
-  fieldsFound: string[];
-  fieldsRemaining: string[];
-  cacheHit: boolean;
-  circuitBreakerState: string;
-  complete?: boolean;
-  data?: EnrichmentData;
-  error?: string;
-}
+import { PlannerService } from './planner.service';
+import { ExtractorService } from './extractor.service';
+import { CircuitBreakerService } from 'src/circuit-breaker/circuit-breaker.service';
 
 const REQUIRED_FIELDS = [
   'companyValueProp',
@@ -30,7 +12,26 @@ const REQUIRED_FIELDS = [
   'pricingModel',
   'keyCompetitors',
   'recentNews',
-];
+] as const;
+
+export type RequiredField = (typeof REQUIRED_FIELDS)[number];
+
+type EnrichmentResult = {
+  companyValueProp: string | null;
+  productNames: string[] | null;
+  pricingModel: string | null;
+  keyCompetitors: string[] | null;
+  recentNews: string[] | null;
+};
+
+const searchLogs: {
+  iteration: number;
+  query: string;
+  topResults: any;
+  cacheHit: boolean;
+  circuitBreakerState: string;
+  responseTimeMs: number;
+}[] = [];
 
 @Injectable()
 export class DeepResearchAgent {
@@ -41,437 +42,192 @@ export class DeepResearchAgent {
     private readonly searchService: SearchService,
     private readonly pubSubService: PubSubService,
     private readonly campaignService: CampaignService,
+    private readonly plannerService: PlannerService,
+    private readonly extractorService: ExtractorService,
+    private readonly circuitBreaker: CircuitBreakerService,
   ) {
-    this.maxIterations = parseInt(process.env.MAX_AGENT_ITERATIONS || '5');
+    this.maxIterations = parseInt(process.env.MAX_AGENT_ITERATIONS || '1');
   }
 
-  async enrich(
-    personId: string,
-    jobId: string,
-    userId: string,
-  ): Promise<{
-    data: EnrichmentData;
-    iterations: number;
-  }> {
-    this.logger.log(`Starting enrichment for person ${personId}, job ${jobId}`);
+  async enrich(personId: string, jobId: string, userId: string) {
+    this.logger.log(`Starting deep research for person ${personId}`);
 
-    try {
-      await this.campaignService.markInProgress(personId, jobId);
+    const person = await this.campaignService.getPersonById(personId, userId);
 
-      const person = await this.campaignService.getPersonById(personId, userId);
+    const result: EnrichmentResult = {
+      companyValueProp: null,
+      keyCompetitors: null,
+      pricingModel: null,
+      productNames: null,
+      recentNews: null,
+    };
 
-      if (!person) {
-        throw new Error(`Person ${personId} not found`);
+    let iteration = 0;
+
+    while (iteration < this.maxIterations) {
+      iteration++;
+      const missingFields = this.getMissingFields(result);
+
+      if (missingFields.length === 0) {
+        this.logger.log(`All fields collected in ${iteration - 1} iteration`);
+        break;
       }
 
-      const enrichmentData: EnrichmentData = {};
-      let iteration = 0;
-      let totalCacheHits = 0;
-
-      // Agent loop
-      while (iteration < this.maxIterations) {
-        iteration++;
-
-        const missingFields = this.getMissingFields(enrichmentData);
-
-        if (missingFields.length === 0) {
-          this.logger.log(
-            `All fields found after ${iteration} iterations, stopping early`,
-          );
-          break;
-        }
-
-        // Plan next query based on missing fields
-        const query = this.planQuery(person.company.name, missingFields);
-
-        this.logger.log(
-          `Iteration ${iteration}/${this.maxIterations}: ${query}`,
-        );
-
-        // Execute search
-        const searchResult = await this.searchService.search(query);
-
-        if (searchResult.cacheHit) {
-          totalCacheHits++;
-        }
-
-        // Get circuit breaker state
-        const circuitBreakerState = await this.getCircuitBreakerState();
-
-        // Extract data from results
-        const extracted = await this.extractData(
-          searchResult.results,
-          missingFields,
-        );
-
-        // Merge extracted data
-        Object.assign(enrichmentData, extracted);
-
-        // Log search iteration
-        await this.campaignService.logSearchIteration({
-          personId,
-          iteration,
-          query,
-          results: searchResult.results.slice(0, 5),
-          cacheHit: searchResult.cacheHit,
-          circuitBreakerState,
-          responseTime: searchResult.responseTime,
-        });
-
-        // Publish progress
-        await this.publishProgress(jobId, {
-          iteration,
-          totalIterations: this.maxIterations,
-          currentQuery: query,
-          fieldsFound: Object.keys(enrichmentData),
-          fieldsRemaining: missingFields,
-          cacheHit: searchResult.cacheHit,
-          circuitBreakerState,
-        });
-
-        // Small delay to avoid rate limiting
-        await this.sleep(500);
-      }
-
-      const cacheHitRatio = totalCacheHits / iteration;
-
-      await this.saveContextSnippets(
-        personId,
-        person.companyId,
-        enrichmentData,
-        cacheHitRatio,
+      const query = await this.plannerService.generateQuery(
+        person.company.name,
+        missingFields,
       );
 
-      // Mark person as COMPLETE
-      await this.campaignService.markComplete(personId);
+      this.logger.log(`Iteration ${iteration} : Query = ${query}`);
 
-      // Publish completion
-      await this.publishProgress(jobId, {
+      const searchResponse = await this.searchService.search(query);
+
+      const combinedContent = searchResponse.results
+        .map((r) => `${r.title}\n${r.description}\n${r.content || ''}`)
+        .join('\n');
+
+      let extracted = await this.extractorService.extract(combinedContent);
+
+      if (!extracted) {
+        this.logger.warn('Retrying extraction once...');
+        extracted = await this.extractorService.extract(combinedContent);
+      }
+
+      if (!extracted) {
+        continue;
+      }
+
+      this.mergeResults(result, extracted);
+
+      const breakerState = await this.circuitBreaker.getState();
+
+      searchLogs.push({
         iteration,
-        totalIterations: iteration,
-        currentQuery: 'Enrichment complete!',
-        fieldsFound: Object.keys(enrichmentData),
-        fieldsRemaining: [],
-        cacheHit: false,
-        circuitBreakerState: 'CLOSED',
-        complete: true,
-        data: enrichmentData,
+        query,
+        topResults: searchResponse.results.slice(0, 5),
+        cacheHit: searchResponse.cacheHit,
+        circuitBreakerState: breakerState,
+        responseTimeMs: searchResponse.responseTime,
       });
 
-      this.logger.log(
-        `Enrichment complete for person ${personId} after ${iteration} iterations`,
+      await this.publishProgress(
+        jobId,
+        iteration,
+        query,
+        result,
+        searchResponse.cacheHit,
       );
-
-      return {
-        data: enrichmentData,
-        iterations: iteration,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Enrichment failed for person ${personId}: ${error.message}`,
-      );
-
-      // Mark person as FAILED
-      await this.campaignService.markFailed(personId);
-
-      // Publish error
-      await this.publishProgress(jobId, {
-        iteration: 0,
-        totalIterations: this.maxIterations,
-        currentQuery: 'Enrichment failed',
-        fieldsFound: [],
-        fieldsRemaining: REQUIRED_FIELDS,
-        cacheHit: false,
-        circuitBreakerState: 'UNKNOWN',
-        complete: true,
-        error: error.message,
-      });
-
-      throw error;
     }
-  }
-
-  private getMissingFields(data: EnrichmentData): string[] {
-    return REQUIRED_FIELDS.filter((field) => {
-      const value = data[field as keyof EnrichmentData];
-      if (Array.isArray(value)) {
-        return value.length === 0;
-      }
-      return !value;
+    await this.campaignService.persistEnrichment({
+      personId,
+      result,
+      searchLogs,
     });
-  }
 
-  private planQuery(companyName: string, missingFields: string[]): string {
-    const field = missingFields[0];
-
-    const queryMap: Record<string, string> = {
-      companyValueProp: `${companyName} company value proposition mission`,
-      productNames: `${companyName} products services offerings`,
-      pricingModel: `${companyName} pricing plans cost`,
-      keyCompetitors: `${companyName} competitors alternatives`,
-      recentNews: `${companyName} news latest updates`,
+    return {
+      data: result,
+      iterations: iteration,
     };
-
-    return queryMap[field] || `${companyName} overview`;
   }
 
-  private async extractData(
-    results: SearchResult[],
-    targetFields: string[],
-  ): Promise<Partial<EnrichmentData>> {
-    const extracted: Partial<EnrichmentData> = {};
+  private getMissingFields(result: EnrichmentResult): RequiredField[] {
+    const missing: RequiredField[] = [];
 
-    if (results.length === 0) {
-      return extracted;
+    if (!result.companyValueProp) {
+      missing.push('companyValueProp');
     }
 
-    // Combine all content
-    const combinedContent = results
-      .map((r) => `${r.title} ${r.snippet} ${r.content || ''}`)
-      .join(' ')
-      .toLowerCase();
-
-    // Extract data for each target field
-    for (const field of targetFields) {
-      switch (field) {
-        case 'companyValueProp':
-          extracted.companyValueProp = this.extractValueProp(
-            combinedContent,
-            results,
-          );
-          break;
-        case 'productNames':
-          extracted.productNames = this.extractProducts(combinedContent);
-          break;
-        case 'pricingModel':
-          extracted.pricingModel = this.extractPricing(combinedContent);
-          break;
-        case 'keyCompetitors':
-          extracted.keyCompetitors = this.extractCompetitors(combinedContent);
-          break;
-        case 'recentNews':
-          extracted.recentNews = this.extractNews(results);
-          break;
-      }
+    if (!result.productNames || result.productNames.length === 0) {
+      missing.push('productNames');
     }
 
-    return extracted;
+    if (!result.pricingModel) {
+      missing.push('pricingModel');
+    }
+
+    if (!result.keyCompetitors || result.keyCompetitors.length === 0) {
+      missing.push('keyCompetitors');
+    }
+
+    if (!result.recentNews || result.recentNews.length === 0) {
+      missing.push('recentNews');
+    }
+
+    return missing;
   }
 
-  private extractValueProp(content: string, results: SearchResult[]): string {
-    const indicators = [
-      'mission',
-      'value proposition',
-      'we help',
-      'we provide',
-      'enables',
-      'platform for',
-      'empowers',
-      'dedicated to',
-    ];
-
-    for (const result of results) {
-      const text = `${result.title} ${result.snippet}`.toLowerCase();
-      for (const indicator of indicators) {
-        if (text.includes(indicator)) {
-          return result.snippet.substring(0, 200);
-        }
-      }
+  private mergeResults(
+    target: EnrichmentResult,
+    extracted: Partial<EnrichmentResult>,
+  ) {
+    if (extracted.companyValueProp && !target.companyValueProp) {
+      target.companyValueProp = extracted.companyValueProp;
     }
 
-    return results[0]?.snippet.substring(0, 200) || '';
-  }
-
-  private extractProducts(content: string): string[] {
-    const products: string[] = [];
-    const patterns = [
-      /products?:?\s*([^.]+)/gi,
-      /services?:?\s*([^.]+)/gi,
-      /offers?\s+([^.]+)/gi,
-      /solutions?:?\s*([^.]+)/gi,
-    ];
-
-    for (const pattern of patterns) {
-      const matches = content.match(pattern);
-      if (matches) {
-        matches.forEach((match) => {
-          const items = match
-            .split(/,|and|\||&/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 3 && s.length < 50)
-            .map((s) =>
-              s.replace(
-                /^(products?|services?|offers?|solutions?)[:|\s]*/i,
-                '',
-              ),
-            );
-          products.push(...items);
-        });
-      }
+    if (extracted.productNames?.length && !target.productNames) {
+      target.productNames = extracted.productNames;
     }
 
-    return [...new Set(products)].slice(0, 5);
-  }
-
-  private extractPricing(content: string): string {
-    const pricingIndicators = {
-      freemium: ['free', 'paid', 'premium'],
-      subscription: ['subscription', 'monthly', 'annual', 'recurring'],
-      enterprise: ['enterprise', 'contact sales', 'custom pricing'],
-      free: ['free', 'open source', 'no cost'],
-      usage: ['pay as you go', 'usage-based', 'metered'],
-    };
-
-    for (const [model, indicators] of Object.entries(pricingIndicators)) {
-      const matches = indicators.filter((ind) => content.includes(ind));
-      if (matches.length >= 2) {
-        return model.charAt(0).toUpperCase() + model.slice(1);
-      }
+    if (extracted.pricingModel && !target.pricingModel) {
+      target.pricingModel = extracted.pricingModel;
     }
 
-    if (content.includes('$')) {
-      return 'Paid';
+    if (extracted.keyCompetitors?.length && !target.keyCompetitors) {
+      target.keyCompetitors = extracted.keyCompetitors;
     }
 
-    return 'Unknown';
-  }
-
-  private extractCompetitors(content: string): string[] {
-    const competitors: string[] = [];
-    const patterns = [
-      /competitors?:?\s*([^.]+)/gi,
-      /alternatives?:?\s*([^.]+)/gi,
-      /vs\.?\s+([A-Z][a-z]+)/g,
-      /compared to\s+([A-Z][a-z]+)/gi,
-    ];
-
-    for (const pattern of patterns) {
-      const matches = content.match(pattern);
-      if (matches) {
-        matches.forEach((match) => {
-          const items = match
-            .split(/,|and|\||&/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 2 && s.length < 30)
-            .map((s) =>
-              s.replace(
-                /^(competitors?|alternatives?|vs\.?|compared to)[:|\s]*/i,
-                '',
-              ),
-            );
-          competitors.push(...items);
-        });
-      }
+    if (extracted.recentNews?.length && !target.recentNews) {
+      target.recentNews = extracted.recentNews;
     }
-
-    return [...new Set(competitors)].slice(0, 5);
   }
 
-  private extractNews(results: SearchResult[]): string[] {
-    return results.slice(0, 3).map((r) => r.title);
-  }
-
-  private async saveContextSnippets(
+  private async logIteration(
     personId: string,
-    companyId: string,
-    data: EnrichmentData,
-    cacheHitRatio: number,
-  ): Promise<void> {
-    const fieldsFound = Object.keys(data).length;
-    const confidenceScore = (fieldsFound / REQUIRED_FIELDS.length) * 100;
+    iteration: number,
+    query: string,
+    searchResponse: {
+      results: SearchResult[];
+      cacheHit: boolean;
+      responseTime: number;
+    },
+  ) {
+    const breakerState = await this.circuitBreaker.getState();
 
-    type ContextSnippet = {
-      entityType: string;
-      entityId: string;
-      snippetType: string;
-      payload: any;
-      sourceUrls: string[];
-      confidenceScore: number;
-      cacheHitRatio: number;
-    };
-    const snippets: ContextSnippet[] = [];
-
-    if (data.companyValueProp) {
-      snippets.push({
-        entityType: 'COMPANY',
-        entityId: companyId,
-        snippetType: 'COMPANY_VALUE_PROP',
-        payload: { value: data.companyValueProp },
-        sourceUrls: [],
-        confidenceScore,
-        cacheHitRatio,
-      });
-    }
-
-    if (data.productNames && data.productNames.length > 0) {
-      snippets.push({
-        entityType: 'COMPANY',
-        entityId: companyId,
-        snippetType: 'PRODUCT_NAMES',
-        payload: { products: data.productNames },
-        sourceUrls: [],
-        confidenceScore,
-        cacheHitRatio,
-      });
-    }
-
-    if (data.pricingModel) {
-      snippets.push({
-        entityType: 'COMPANY',
-        entityId: companyId,
-        snippetType: 'PRICING_MODEL',
-        payload: { model: data.pricingModel },
-        sourceUrls: [],
-        confidenceScore,
-        cacheHitRatio,
-      });
-    }
-
-    if (data.keyCompetitors && data.keyCompetitors.length > 0) {
-      snippets.push({
-        entityType: 'COMPANY',
-        entityId: companyId,
-        snippetType: 'KEY_COMPETITORS',
-        payload: { competitors: data.keyCompetitors },
-        sourceUrls: [],
-        confidenceScore,
-        cacheHitRatio,
-      });
-    }
-
-    if (data.recentNews && data.recentNews.length > 0) {
-      snippets.push({
-        entityType: 'COMPANY',
-        entityId: companyId,
-        snippetType: 'RECENT_NEWS',
-        payload: { news: data.recentNews },
-        sourceUrls: [],
-        confidenceScore,
-        cacheHitRatio,
-      });
-    }
-
-    // Save all snippets via campaign service
-    await this.campaignService.saveContextSnippets(snippets);
+    await this.campaignService.logSearchIteration({
+      personId,
+      iteration,
+      query,
+      results: searchResponse.results.slice(0, 5).map((r) => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.description,
+      })),
+      cacheHit: searchResponse.cacheHit,
+      circuitBreakerState: breakerState,
+      responseTime: searchResponse.responseTime,
+    });
   }
 
   private async publishProgress(
     jobId: string,
-    progress: AgentProgress,
-  ): Promise<void> {
-    await this.pubSubService.publish(`enrichment:progress:${jobId}`, progress);
-  }
+    iteration: number,
+    query: string,
+    result: EnrichmentResult,
+    cacheHit: boolean,
+  ) {
+    const missingFields = this.getMissingFields(result);
 
-  private async getCircuitBreakerState(): Promise<string> {
-    try {
-      const status = await this.searchService['circuitBreaker'].getStatus();
-      return status.state;
-    } catch {
-      return 'UNKNOWN';
-    }
-  }
+    const breakerState = await this.circuitBreaker.getState();
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    await this.pubSubService.publish(`enrichment:progress:${jobId}`, {
+      jobId,
+      iteration,
+      totalIterations: this.maxIterations,
+      currentQuery: query,
+      fieldsFound: REQUIRED_FIELDS.filter((field) => result[field] !== null),
+      fieldsRemaining: missingFields,
+      cacheHit,
+      circuitBreakerState: breakerState,
+    });
   }
 }

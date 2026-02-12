@@ -110,8 +110,6 @@ model ContextSnippet {
   cacheHitRatio   Float       @default(0.0)
   createdAt       DateTime    @default(now())
 
-  //person     People?     @relation("PersonSnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_person_entityId_fkey")
-  //company    Company?    @relation("CompanySnippets", fields: [entityId], references: [id], onDelete: Cascade, map: "ContextSnippet_company_entityId_fkey")
   searchLogs SearchLog[]
 
   @@index([entityType, entityId])
@@ -144,8 +142,6 @@ enum CircuitBreakerEventType {
   OPENED
   CLOSED
   HALF_OPENED
-  SUCCESS
-  FAILURE
 }
 
 model CircuitBreakerEvent {

@@ -11,7 +11,6 @@ export enum CircuitBreakerState {
 interface CircuitBreakerConfig {
   failureThreshold: number;
   timeout: number;
-  halfOpenTimeout: number;
 }
 
 @Injectable()
@@ -19,7 +18,6 @@ export class CircuitBreakerService {
   private readonly logger = new Logger(CircuitBreakerService.name);
   private readonly config: CircuitBreakerConfig;
   private readonly serviceName: string = 'search_api';
-
   constructor(
     private readonly cacheService: CacheService,
     private readonly campaignClient: CampaignService,
@@ -29,9 +27,6 @@ export class CircuitBreakerService {
         process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD || '3',
       ),
       timeout: parseInt(process.env.CIRCUIT_BREAKER_TIMEOUT || '30000'),
-      halfOpenTimeout: parseInt(
-        process.env.CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT || '30000',
-      ),
     };
   }
 
@@ -110,7 +105,6 @@ export class CircuitBreakerService {
       await this.cacheService.set(
         `circuit_breaker:${this.serviceName}:successes`,
         (successes + 1).toString(),
-        30,
       );
 
       // Close circuit after 2 successes in HALF_OPEN state
@@ -126,7 +120,7 @@ export class CircuitBreakerService {
       );
     }
 
-    await this.logEvent('SUCCESS', null);
+    await this.logEvent('CLOSED', null);
   }
 
   private async onFailure(error: any): Promise<void> {
@@ -136,23 +130,22 @@ export class CircuitBreakerService {
     await this.cacheService.set(
       `circuit_breaker:${this.serviceName}:failures`,
       (failures + 1).toString(),
-      30,
     );
 
     await this.cacheService.set(
       `circuit_breaker:${this.serviceName}:last_failure`,
       Date.now().toString(),
-      30,
     );
 
-    this.logger.error(
-      `Circuit breaker failure #${failures + 1}: ${error.message}`,
-    );
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    this.logger.error(`Circuit breaker failure #${failures + 1}: ${message}`);
 
     if (state === CircuitBreakerState.HALF_OPEN) {
       // Any failure in HALF_OPEN state reopens the circuit
       this.logger.warn('Failure in HALF_OPEN, transitioning to OPEN');
       await this.transitionTo(CircuitBreakerState.OPEN);
+      this.logger.log('Allowing test request in HALF_OPEN state');
     } else if (
       state === CircuitBreakerState.CLOSED &&
       failures + 1 >= this.config.failureThreshold
@@ -163,16 +156,24 @@ export class CircuitBreakerService {
       await this.transitionTo(CircuitBreakerState.OPEN);
     }
 
-    await this.logEvent('FAILURE', error.message);
+    await this.logEvent('OPEN', message);
   }
 
   private async transitionTo(newState: CircuitBreakerState): Promise<void> {
+    if (newState === CircuitBreakerState.HALF_OPEN) {
+      await this.cacheService.delete(
+        `circuit_breaker:${this.serviceName}:failures`,
+      );
+      await this.cacheService.delete(
+        `circuit_breaker:${this.serviceName}:successes`,
+      );
+    }
+
     const oldState = await this.getState();
 
     await this.cacheService.set(
       `circuit_breaker:${this.serviceName}:state`,
       newState,
-      this.config.halfOpenTimeout / 1000,
     );
 
     this.logger.log(`Circuit breaker: ${oldState} -> ${newState}`);
@@ -204,22 +205,15 @@ export class CircuitBreakerService {
     errorMessage: string | null,
   ): Promise<void> {
     try {
-      // await this.campaignClient.logCircuitBreakEvent(
-      //   this.serviceName,
-      //   eventType,
-      //   errorMessage,
-      // );
-      // await this.prisma.circuitBreakerEvent.create({
-      //   data: {
-      //     serviceName: this.serviceName,
-      //     eventType: eventType,
-      //     errorMessage,
-      //   },
-      // });
-    } catch (error) {
-      this.logger.error(
-        `Failed to log circuit breaker event: ${error.message}`,
+      await this.campaignClient.logCircuitBreakEvent(
+        this.serviceName,
+        eventType,
+        errorMessage,
       );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+
+      this.logger.error(`Failed to log circuit breaker event: ${message}`);
     }
   }
 

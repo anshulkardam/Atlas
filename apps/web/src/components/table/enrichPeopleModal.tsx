@@ -18,18 +18,18 @@ export function EnrichModal({ open, onClose, person }: Props) {
         </div>
 
         <div className="space-y-1">
-          <p className="font-medium">{person.name}</p>
+          <p className="font-medium">{person.fullName}</p>
           <p className="text-sm text-muted-foreground">
-            {person.title} · {person.company}
+            {person.title} · {person.company?.name}
           </p>
         </div>
 
         <div className="border rounded p-3 text-sm">
-          Status: <strong>{person.status}</strong>
+          Status: <strong>{person.enrichmentStatus}</strong>
         </div>
 
         {/* placeholder for enriched data */}
-        {person.status === "ENRICHED" && (
+        {person.enrichmentStatus === "COMPLETE" && (
           <div className="space-y-2 text-sm">
             <p>Email: {person.email}</p>
             {/* more fields later */}
@@ -40,7 +40,9 @@ export function EnrichModal({ open, onClose, person }: Props) {
           <button className="px-3 py-2 border rounded" onClick={onClose}>
             Close
           </button>
-          <button className="px-3 py-2 bg-black text-white rounded">Re-Enrich</button>
+          <button className="px-3 py-2 bg-black text-white rounded">
+            Re-Enrich
+          </button>
         </div>
       </div>
     </div>

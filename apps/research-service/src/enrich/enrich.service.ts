@@ -19,7 +19,6 @@ export class EnrichService {
   ) {}
 
   async enqueueEnrichment(personId: string, userId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const person = await this.campaignClient.getPersonById(personId, userId);
 
     if (!person) {
@@ -34,7 +33,6 @@ export class EnrichService {
         userId,
       },
       {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         priority: person.retry_count > 0 ? 5 : 1,
         attempts: 3,
         backoff: {

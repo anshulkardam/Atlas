@@ -1,13 +1,15 @@
 import type { Person } from "@/types/entities";
 import type { ColumnDef } from "@tanstack/react-table";
 
-export const getPeopleColumns = (onEnrichClick: (person: Person) => void): ColumnDef<Person>[] => [
+export const getPeopleColumns = (
+  onEnrichClick: (person: Person) => void,
+): ColumnDef<Person>[] => [
   {
-    accessorKey: "name",
+    accessorKey: "fullName",
     header: "Name",
   },
   {
-    accessorKey: "company",
+    accessorKey: "company.name",
     header: "Company",
   },
   {
@@ -15,10 +17,10 @@ export const getPeopleColumns = (onEnrichClick: (person: Person) => void): Colum
     header: "Title",
   },
   {
-    accessorKey: "status",
+    accessorKey: "enrichmentStatus",
     header: "Status",
     cell: ({ getValue }) => {
-      const status = getValue<Person["status"]>();
+      const status = getValue<Person["enrichmentStatus"]>();
       return <span className="text-xs px-2 py-1 rounded border">{status}</span>;
     },
   },
@@ -26,7 +28,10 @@ export const getPeopleColumns = (onEnrichClick: (person: Person) => void): Colum
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <button onClick={() => onEnrichClick(row.original)} className="text-sm underline">
+      <button
+        onClick={() => onEnrichClick(row.original)}
+        className="text-sm underline"
+      >
         Enrich
       </button>
     ),

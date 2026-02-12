@@ -7,10 +7,20 @@ import { EnrichModal } from "@/components/table/enrichPeopleModal";
 const mockData: Person[] = [
   {
     id: "1",
-    name: "John Doe",
-    company: "Acme Inc",
+    fullName: "John Doe",
     title: "CTO",
-    status: "NOT_ENRICHED",
+    enrichmentStatus: "PENDING",
+    companyId: "1",
+    email: "john@acme.com",
+    retryCount: 0,
+    createdAt: new Date().toISOString(),
+    company: {
+      id: "1",
+      name: "Acme Inc",
+      domain: "acme.com",
+      campaignId: "1",
+      createdAt: new Date().toISOString(),
+    },
   },
 ];
 

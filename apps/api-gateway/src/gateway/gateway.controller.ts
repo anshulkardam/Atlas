@@ -46,7 +46,7 @@ export class GatewayController {
 
   @Get('companies/:id')
   @UseGuards(JwtAuthGuard)
-  async getCompany(
+  async getCompanyDetails(
     @Param('id') id: string,
     @Req() req: AuthUser,
   ): Promise<getCompanyByIdApiResponse> {
@@ -75,7 +75,9 @@ export class GatewayController {
 
   @Get('people/:id')
   @UseGuards(JwtAuthGuard)
-  async getPerson(@Param('id') id: string): Promise<getPeopleDetailsById> {
+  async getPersonDetails(
+    @Param('id') id: string,
+  ): Promise<getPeopleDetailsById> {
     const response = await firstValueFrom(
       this.httpService.get(`${this.campaignServiceUrl}/api/people/${id}`),
     );
@@ -90,13 +92,13 @@ export class GatewayController {
   ): Promise<getPeopleDetailsById> {
     const jobId = `job-${Date.now()}-${personId}`;
 
-    await this.redis.zadd('active_jobs', Date.now(), jobId);
-
     try {
       const response = await firstValueFrom(
         this.httpService.post(
           `${this.researchServiceUrl}/api/people/${personId}/enrich`,
-          { userId: req.user.id },
+          {
+            headers: { 'x-user-id': req.user.id },
+          },
         ),
       );
 

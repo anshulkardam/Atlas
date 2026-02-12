@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { DeepResearchAgent } from '../deep-research-agent/deep-research-agent.service';
 import { PubSubService } from '../pubsub/pubsub.service';
 import { CampaignService } from '../campaign/campaign.service';
+import { CacheService } from 'src/cache/cache.service';
 
 interface EnrichmentJobData {
   personId: string;
@@ -13,31 +14,35 @@ interface EnrichmentJobData {
 @Processor('enrichment_jobs')
 export class EnrichmentProcessor extends WorkerHost {
   private readonly logger = new Logger(EnrichmentProcessor.name);
-
+  private readonly maxIterations: number;
   constructor(
     private readonly agent: DeepResearchAgent,
     private readonly pubSub: PubSubService,
     private readonly campaignClient: CampaignService,
+    private readonly redis: CacheService,
   ) {
     super();
+    this.maxIterations = parseInt(process.env.MAX_AGENT_ITERATIONS || '5');
   }
 
   async process(job: Job<EnrichmentJobData>) {
     const { personId, userId } = job.data;
     const jobId = job.id!.toString();
-
-    this.logger.log(
-      `Processing enrichment job ${jobId} for person ${personId}`,
-    );
-
     try {
+      await this.redis.zadd('active_jobs', Date.now(), jobId);
+
+      this.logger.log(
+        `Processing enrichment job ${jobId} for person ${personId}`,
+      );
+
       // Update person status to IN_PROGRESS
       await this.campaignClient.markInProgress(personId, jobId);
 
       // Publish initial progress
       await this.pubSub.publish(`enrichment:progress:${jobId}`, {
+        jobId,
         iteration: 0,
-        totalIterations: 5,
+        totalIterations: this.maxIterations,
         currentQuery: 'Starting enrichment...',
         fieldsFound: [],
         fieldsRemaining: [
@@ -59,6 +64,7 @@ export class EnrichmentProcessor extends WorkerHost {
 
       // Publish completion
       await this.pubSub.publish(`enrichment:progress:${jobId}`, {
+        jobId,
         iteration: result.iterations,
         totalIterations: result.iterations,
         currentQuery: 'Enrichment complete!',
@@ -83,20 +89,25 @@ export class EnrichmentProcessor extends WorkerHost {
 
       await this.campaignClient.markFailed(personId);
 
+      const message = error instanceof Error ? error.message : 'Unknown error';
+
       // Publish error
       await this.pubSub.publish(`enrichment:progress:${jobId}`, {
+        jobId,
         iteration: 0,
         totalIterations: 5,
         currentQuery: 'Enrichment failed',
         fieldsFound: [],
         fieldsRemaining: [],
         cacheHit: false,
-        circuitBreakerState: 'UNKNOWN',
+        circuitBreakerState: 'CLOSED',
         complete: true,
-        error: error.message,
+        error: message,
       });
 
       throw error;
+    } finally {
+      await this.redis.zrem('active_jobs', jobId);
     }
   }
 }

@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import FirecrawlApp from '@mendable/firecrawl-js';
+import FirecrawlApp, {
+  SearchResultNews,
+  SearchResultWeb,
+} from '@mendable/firecrawl-js';
 import * as crypto from 'crypto';
 import { CacheService } from '../cache/cache.service';
 import { CircuitBreakerService } from '../circuit-breaker/circuit-breaker.service';
@@ -7,7 +10,7 @@ import { CircuitBreakerService } from '../circuit-breaker/circuit-breaker.servic
 export interface SearchResult {
   title: string;
   url: string;
-  snippet: string;
+  description: string;
   content?: string;
 }
 
@@ -41,7 +44,8 @@ export class SearchService {
     if (cached) {
       this.logger.log(`Cache HIT for query: ${query}`);
       return {
-        results: JSON.parse(cached as string),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        results: JSON.parse(cached),
         cacheHit: true,
         responseTime: Date.now() - startTime,
       };
@@ -54,8 +58,9 @@ export class SearchService {
       async () => {
         return await this.executeSearch(query);
       },
+      // eslint-disable-next-line @typescript-eslint/require-await
       async () => {
-        // Fallback: return empty results or cached partial data
+        // Fallback: return empty results
         this.logger.warn('Using fallback for search');
         return [];
       },
@@ -79,27 +84,54 @@ export class SearchService {
 
   private async executeSearch(query: string): Promise<SearchResult[]> {
     try {
-      // Use Firecrawl's search endpoint
       const searchResponse = await this.firecrawl.search(query, {
-        limit: 5,
+        limit: 3,
+        sources: ['news', 'web'],
       });
 
-      if (!searchResponse.web) {
-        throw new Error('Firecrawl search failed');
+      if (!searchResponse.web && !searchResponse.news) {
+        throw new Error('Firecrawl search returned no data');
       }
 
-      // Transform Firecrawl results to our format
-      const results: SearchResult[] = searchResponse.web.map((item: any) => ({
-        title: item.title || '',
-        url: item.url || '',
-        snippet: item.description || item.snippet || '',
-        content: item.markdown || item.content || '',
-      }));
+      const webResults: SearchResult[] = (searchResponse.web || []).map(
+        (item: SearchResultWeb) => ({
+          title: item.title || '',
+          url: item.url || '',
+          description: item.description || '',
+        }),
+      );
+
+      const newsResults: SearchResult[] = (searchResponse.news || []).map(
+        (item: SearchResultNews) => ({
+          title: item.title || '',
+          url: item.url || '',
+          description: item.snippet || '',
+        }),
+      );
+
+      const results = [...webResults, ...newsResults].slice(0, 5);
 
       this.logger.log(`Found ${results.length} results for query: ${query}`);
-      return results;
+
+      const enrichedResults: SearchResult[] = await Promise.all(
+        results.map(async (item) => {
+          try {
+            const content = await this.scrapeUrl(item.url);
+            const trimmed = content.slice(0, 4000);
+            return {
+              ...item,
+              trimmed,
+            };
+          } catch {
+            return item;
+          }
+        }),
+      );
+
+      return enrichedResults;
     } catch (error) {
-      this.logger.error(`Search failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Search failed: ${message}`);
       throw error;
     }
   }
@@ -116,7 +148,8 @@ export class SearchService {
 
       return scrapeResponse.markdown;
     } catch (error) {
-      this.logger.error(`Failed to scrape ${url}: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to scrape ${url}: ${message}`);
       throw error;
     }
   }

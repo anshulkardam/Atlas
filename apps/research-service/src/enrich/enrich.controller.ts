@@ -1,7 +1,7 @@
 import {
-  Body,
   Controller,
   Get,
+  Headers,
   HttpException,
   HttpStatus,
   Param,
@@ -16,7 +16,7 @@ export class EnrichController {
   @Post('people/:id/enrich')
   async enrichPerson(
     @Param('id') personId: string,
-    @Body('userId') userId: string,
+    @Headers('x-user-id') userId: string,
   ) {
     try {
       const job = await this.enrichService.enqueueEnrichment(personId, userId);

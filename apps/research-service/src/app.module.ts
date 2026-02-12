@@ -10,7 +10,10 @@ import { CacheService } from './cache/cache.service';
 import { PubSubService } from './pubsub/pubsub.service';
 import { DeepResearchAgent } from './deep-research-agent/deep-research-agent.service';
 import { CampaignService } from './campaign/campaign.service';
-import { EnrichmentProcessor } from './processors/enrich.processor';
+import { EnrichmentProcessor } from './enrich/enrich.processor';
+import { GeminiService } from './gemini/gemini.service';
+import { PlannerService } from './deep-research-agent/planner.service';
+import { ExtractorService } from './deep-research-agent/extractor.service';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { EnrichmentProcessor } from './processors/enrich.processor';
     PubSubService,
     CampaignService,
     EnrichmentProcessor,
+    GeminiService,
+    PlannerService,
+    ExtractorService,
   ],
 })
 export class AppModule {}

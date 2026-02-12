@@ -7,7 +7,7 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { SnippetsService } from './snippets.service.js';
+import { EnrichmentResult, SnippetsService } from './snippets.service.js';
 
 @Controller('snippets')
 export class SnippetsController {
@@ -22,12 +22,7 @@ export class SnippetsController {
       throw new UnauthorizedException();
     }
 
-    return this.snippetsService.getPersonSnippets(personId, userId);
-  }
-
-  @Post('complete')
-  complete(@Body() payload: any) {
-    return this.snippetsService.persist(payload);
+    return this.snippetsService.getPersonSnippets(personId);
   }
 
   @Post('batch')
@@ -36,7 +31,23 @@ export class SnippetsController {
   }
 
   @Post('search-logs')
-  async createSearchLog(@Body() data: any) {
-    return this.snippetsService.SaveSearchLogs(data);
+  create(@Body() body: any) {
+    return this.snippetsService.createSearchLog(body);
+  }
+
+  @Post('complete')
+  persist(
+    @Body()
+    body: {
+      personId: string;
+      result: EnrichmentResult;
+      searchLogs: any[];
+    },
+  ) {
+    return this.snippetsService.persist({
+      personId: body.personId,
+      result: body.result,
+      searchLogs: body.searchLogs,
+    });
   }
 }

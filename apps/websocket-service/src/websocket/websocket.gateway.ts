@@ -101,7 +101,8 @@ export class WebsocketGateway
       //   `Emitted progress for job ${jobId} (iteration ${payload.iteration})`,
       // );
     } catch (err: any) {
-      this.logger.error('Failed to process Redis message', err.message);
+      const message = err instanceof Error ? err.message : 'error';
+      this.logger.error('Failed to process Redis message', message);
     }
   }
 }
