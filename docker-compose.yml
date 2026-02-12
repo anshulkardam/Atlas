@@ -1,0 +1,91 @@
+services:
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./apps/api/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+
+  campaign-service:
+    build:
+      context: .
+      dockerfile: apps/campaign-service/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./apps/auth/.env
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+      - valkey
+
+  research-service:
+    build:
+      context: .
+      dockerfile: apps/research-service/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./apps/api/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+
+  websocket-service:
+    build:
+      context: .
+      dockerfile: apps/websocket-service/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./apps/auth/.env
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+      - valkey
+  #Postgres DB
+  postgres:
+    image: postgres:latest
+    container_name: atlas-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas_dev
+      POSTGRES_DB: atlas_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  #Valkey Redis
+  valkey:
+    image: valkey/valkey:7
+    container_name: atlas-redis-valkey
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+    command: valkey-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  valkey_data:
+
+
+networks:
+  default:
+    name: atlas-network
