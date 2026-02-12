@@ -2,11 +2,6 @@
 
 Atlas enriches people and companies using async research agents and observable pipelines.
 
-## 🚀 Demo
-
-[Live Demo](https://your-demo-link.com)
-
-
 ## 🔧 Installation
 
 1. Clone the repository:
@@ -36,52 +31,93 @@ npm run dev
 # or
 pnpm dev
 ```
+## Architecture Overview
+
+API Gateway – Auth, routing, rate limiting
+
+Campaign Service – Owns database (Postgres + Prisma)
+
+Research Service – AI agent + search + circuit breaker
+
+WebSocket Service – Real-time progress streaming
+
+Redis – BullMQ queue + pub/sub + circuit breaker state
+
+Gemini AI – Structured extraction
+
+Firecrawl API – Search + scrape
+
+## End-to-End Flow
+
+User clicks Enrich
+
+POST /api/people/:id/enrich
+
+Research service enqueues BullMQ job
+
+Agent runs up to 5 iterations:
+
+Plan query
+
+Search (with cache + circuit breaker)
+
+Scrape
+
+Extract structured JSON
+
+Persist search logs
+
+Publish progress
+
+On completion:
+
+Persist context_snippets
+
+Update person status
+
+Emit final progress
+
+Frontend listens via WebSocket and updates modal in real-time
+
+
+| Key                                       | Description                                   |
+| ----------------------------------------- | --------------------------------------------- |
+| `circuit_breaker:search_api:state`        | Current state (`CLOSED`, `OPEN`, `HALF_OPEN`) |
+| `circuit_breaker:search_api:failures`     | Failure counter                               |
+| `circuit_breaker:search_api:successes`    | Success counter (HALF_OPEN mode)              |
+| `circuit_breaker:search_api:last_failure` | Timestamp of last failure                     |
+
 
 ## 📋 API Endpoints
 
-### Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST   | `/auth/login` | User login |
-| POST   | `/auth/register` | User registration |
+| Method | Endpoint             | Service  | Description       |
+| ------ | -------------------- | -------- | ----------------- |
+| POST   | `/api/auth/login`    | Campaign | User login        |
+| POST   | `/api/auth/register` | Campaign | User registration |
 
-### Main Endpoints
+| Method | Endpoint             | Service  | Description         |
+| ------ | -------------------- | -------- | ------------------- |
+| GET    | `/api/campaigns`     | Campaign | Get campaigns       |
+| GET    | `/api/companies/:id` | Campaign | Get company details |
+| GET    | `/api/people`        | Campaign | Get people list     |
+| GET    | `/api/people/:id`    | Campaign | Get person details  |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET    | `/api/items` | Get all items |
-| POST   | `/api/items` | Create new item |
-| GET    | `/api/items/:id` | Get item by ID |
-| PUT    | `/api/items/:id` | Update item |
-| DELETE | `/api/items/:id` | Delete item |
+| Method | Endpoint                   | Service  | Description            |
+| ------ | -------------------------- | -------- | ---------------------- |
+| POST   | `/api/people/:id/enrich`   | Research | Trigger enrichment job |
+| GET    | `/api/jobs/:job_id/status` | Research | Get job status         |
 
-## 📊 Response Format
+| Method | Endpoint                   | Service  | Description          |
+| ------ | -------------------------- | -------- | -------------------- |
+| GET    | `/api/snippets/person/:id` | Campaign | Get context snippets |
 
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Success message"
-}
-```
 
 ## 🔧 Configuration
 
 Environment variables:
 
 ```env
-PORT=3000
-DATABASE_URL=your_database_url
-JWT_SECRET=your_jwt_secret
+check .env.example files for each service
 ```
 
-## 🧪 Testing
-
-```bash
-npm test
-```
-
-## 🤝 Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
