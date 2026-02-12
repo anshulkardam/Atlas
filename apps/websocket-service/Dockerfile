@@ -31,10 +31,13 @@ ENV NODE_ENV=production
 RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
 
+# Add curl for health checks
+RUN apk add --no-cache curl
+
 COPY --from=builder /app/apps/websocket-service/dist ./dist
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/websocket-service/package.json ./
 
-EXPOSE 3002
+EXPOSE 3003
 
 CMD ["node", "dist/main.js"]

@@ -31,6 +31,9 @@ ENV NODE_ENV=production
 RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
 
+# Add curl for health checks
+RUN apk add --no-cache curl
+
 COPY --from=builder /app/apps/api-gateway/dist ./dist
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/api-gateway/package.json ./
