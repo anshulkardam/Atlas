@@ -47,7 +47,7 @@ export type ContextSnippet = {
     | "PRICING_MODEL"
     | "KEY_COMPETITORS"
     | "RECENT_NEWS";
-  payload: any;
+  payload: Record<string, unknown>;
   sourceUrls: string[];
   confidenceScore: number;
   cacheHitRatio: number;
@@ -59,7 +59,7 @@ export type SearchLog = {
   contextSnippetId: string;
   iteration: number;
   query: string;
-  topResults: any;
+  topResults: Record<string, unknown>;
   cacheHit: boolean;
   circuitBreakerState: string;
   responseTimeMs: number;
@@ -75,6 +75,7 @@ export type EnrichmentData = {
 };
 
 export type AgentProgress = {
+  jobId: string;
   iteration: number;
   totalIterations: number;
   currentQuery: string;

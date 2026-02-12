@@ -1,10 +1,15 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState } from "react";
-import type { Person, AgentProgress, EnrichmentData } from "@/types/entities";
+import { useEffect } from "react";
+import type { Person, EnrichmentData } from "@/types/entities";
 import { useWebSocket } from "@/api/ws";
 
 interface EnrichmentModalProps {
@@ -30,13 +35,6 @@ const getCircuitBreakerColor = (state: string) => {
 const EnrichmentDataDisplay = ({ data }: { data: EnrichmentData }) => {
   if (!data) return null;
 
-  const currentProgress = useWebSocket(jobId ?? null);
-
-  const getProgressPercentage = () => {
-    if (!currentProgress) return 0;
-    return Math.round((currentProgress.iteration / currentProgress.totalIterations) * 100);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -45,7 +43,9 @@ const EnrichmentDataDisplay = ({ data }: { data: EnrichmentData }) => {
       <CardContent className="space-y-4">
         {data.companyValueProp && (
           <div>
-            <h4 className="font-semibold text-sm mb-1">Company Value Proposition</h4>
+            <h4 className="font-semibold text-sm mb-1">
+              Company Value Proposition
+            </h4>
             <p className="text-sm text-gray-600">{data.companyValueProp}</p>
           </div>
         )}
@@ -94,9 +94,13 @@ const EnrichmentDataDisplay = ({ data }: { data: EnrichmentData }) => {
   );
 };
 
-export function EnrichmentModal({ isOpen, onClose, person, jobId }: EnrichmentModalProps) {
-  const { subscribeToJob, unsubscribeFromJob, getJobProgress } = useWebSocket();
-  const [currentProgress, setCurrentProgress] = useState<AgentProgress | null>(null);
+export function EnrichmentModal({
+  isOpen,
+  onClose,
+  person,
+  jobId,
+}: EnrichmentModalProps) {
+  const { subscribeToJob, unsubscribeFromJob, jobProgress } = useWebSocket();
 
   useEffect(() => {
     console.log("EnrichmentModal useEffect:", { isOpen, jobId });
@@ -113,17 +117,13 @@ export function EnrichmentModal({ isOpen, onClose, person, jobId }: EnrichmentMo
     };
   }, [isOpen, jobId, subscribeToJob, unsubscribeFromJob]);
 
-  useEffect(() => {
-    if (jobId) {
-      const progress = getJobProgress(jobId);
-      console.log("Progress for job", jobId, ":", progress);
-      setCurrentProgress(progress);
-    }
-  }, [jobId, getJobProgress]);
+  const currentProgress = jobId ? jobProgress[jobId] : null;
 
   const getProgressPercentage = () => {
     if (!currentProgress) return 0;
-    return Math.round((currentProgress.iteration / currentProgress.totalIterations) * 100);
+    return Math.round(
+      (currentProgress.iteration / currentProgress.totalIterations) * 100,
+    );
   };
 
   const isComplete = currentProgress?.complete;
@@ -155,14 +155,20 @@ export function EnrichmentModal({ isOpen, onClose, person, jobId }: EnrichmentMo
           {/* Status Indicators */}
           <div className="flex flex-wrap gap-2">
             <Badge
-              className={getCircuitBreakerColor(currentProgress?.circuitBreakerState || "CLOSED")}
+              className={getCircuitBreakerColor(
+                currentProgress?.circuitBreakerState || "CLOSED",
+              )}
             >
               Circuit: {currentProgress?.circuitBreakerState || "CLOSED"}
             </Badge>
-            <Badge variant={currentProgress?.cacheHit ? "default" : "secondary"}>
+            <Badge
+              variant={currentProgress?.cacheHit ? "default" : "secondary"}
+            >
               {currentProgress?.cacheHit ? "Cache Hit" : "Cache Miss"}
             </Badge>
-            {isComplete && <Badge className="bg-green-100 text-green-800">Complete</Badge>}
+            {isComplete && (
+              <Badge className="bg-green-100 text-green-800">Complete</Badge>
+            )}
           </div>
 
           {/* Current Query */}
@@ -183,7 +189,10 @@ export function EnrichmentModal({ isOpen, onClose, person, jobId }: EnrichmentMo
                 <div className="flex flex-wrap gap-1">
                   {currentProgress.fieldsFound.length > 0 ? (
                     currentProgress.fieldsFound.map((field, index) => (
-                      <Badge key={index} className="bg-green-100 text-green-800">
+                      <Badge
+                        key={index}
+                        className="bg-green-100 text-green-800"
+                      >
                         {field}
                       </Badge>
                     ))
@@ -232,7 +241,9 @@ export function EnrichmentModal({ isOpen, onClose, person, jobId }: EnrichmentMo
           {/* Error Display */}
           {currentProgress?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-800">Error: {currentProgress.error}</p>
+              <p className="text-sm text-red-800">
+                Error: {currentProgress.error}
+              </p>
             </div>
           )}
 

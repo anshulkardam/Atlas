@@ -4,9 +4,10 @@ import type { AgentProgress } from "@/types/entities";
 
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const [jobProgress, setJobProgress] = useState<
-    Record<string, AgentProgress>
-  >({});
+  const [jobProgress, setJobProgress] = useState<Record<string, AgentProgress>>(
+    {},
+  );
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const socket = io("http://localhost:3003", {
@@ -17,6 +18,11 @@ export function useWebSocket() {
 
     socket.on("connect", () => {
       console.log("WS connected:", socket.id);
+      setIsConnected(true);
+    });
+
+    socket.on("disconnect", () => {
+      setIsConnected(false);
     });
 
     socket.on("progress", (data: AgentProgress) => {
@@ -33,22 +39,43 @@ export function useWebSocket() {
     };
   }, []);
 
-  const subscribeToJob = useCallback((jobId: string) => {
-    socketRef.current?.emit("subscribe", { jobId });
-  }, []);
+  const subscribeToJob = useCallback(
+    (jobId: string) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit("subscribe", { jobId });
+      }
+    },
+    [isConnected],
+  );
 
-  const unsubscribeFromJob = useCallback((jobId: string) => {
-    socketRef.current?.emit("unsubscribe", { jobId });
-  }, []);
+  const unsubscribeFromJob = useCallback(
+    (jobId: string) => {
+      if (socketRef.current && isConnected) {
+        socketRef.current.emit("unsubscribe", { jobId });
+      }
+    },
+    [isConnected],
+  );
 
   const getJobProgress = useCallback(
     (jobId: string) => jobProgress[jobId] || null,
-    [jobProgress]
+    [jobProgress],
   );
+
+  const clearJobProgress = useCallback((jobId: string) => {
+    setJobProgress((prev) => {
+      const newProgress = { ...prev };
+      delete newProgress[jobId];
+      return newProgress;
+    });
+  }, []);
 
   return {
     subscribeToJob,
     unsubscribeFromJob,
     getJobProgress,
+    clearJobProgress,
+    isConnected,
+    jobProgress,
   };
 }
